@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Telegram Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .header {
+      background: linear-gradient(135deg, #0088cc, #005f8a);
+      width: 100%;
+      padding: 20px;
+      text-align: center;
+      font-size: 1.4em;
+      font-weight: bold;
+      color: white;
+      box-shadow: 0 2px 10px rgba(0,136,204,0.3);
+    }
+    .status {
+      font-size: 0.6em;
+      margin-top: 8px;
+      opacity: 0.8;
+    }
+    .status .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #4caf50;
+      margin-left: 6px;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .container {
+      width: 100%;
+      max-width: 600px;
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+    }
+    .message {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 14px 18px;
+      border-right: 4px solid #0088cc;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .message .from {
+      color: #0088cc;
+      font-weight: bold;
+      font-size: 0.9em;
+      margin-bottom: 6px;
+    }
+    .message .text {
+      font-size: 1em;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .message .time {
+      font-size: 0.75em;
+      color: #666;
+      margin-top: 8px;
+      text-align: left;
+    }
+    .empty {
+      text-align: center;
+      color: #555;
+      margin-top: 40vh;
+      font-size: 1.1em;
+    }
+    .empty .icon { font-size: 3em; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    Telegram Live
+    <div class="status"><span class="dot"></span> متصل - يتم التحديث كل 3 ثواني</div>
+  </div>
+  <div class="container" id="messages">
+    <div class="empty">
+      <div class="icon">📨</div>
+      بانتظار الرسائل...
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('messages');
+    let lastOffset = 0;
+    let allMessages = [];
+
+    async function fetchMessages() {
+      try {
+        const res = await fetch(`/api/messages?offset=${lastOffset}`);
+        const data = await res.json();
+        if (data.ok && data.messages.length > 0) {
+          data.messages.forEach(msg => {
+            if (!allMessages.find(m => m.id === msg.id)) {
+              allMessages.push(msg);
+            }
+          });
+          const maxId = Math.max(...data.messages.map(m => m.id));
+          lastOffset = maxId + 1;
+          renderMessages();
+        }
+      } catch (e) {
+        console.error('Fetch error:', e);
+      }
+    }
+
+    function renderMessages() {
+      if (allMessages.length === 0) return;
+      container.innerHTML = '';
+      allMessages.forEach(msg => {
+        const date = new Date(msg.date * 1000);
+        const timeStr = date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+        const div = document.createElement('div');
+        div.className = 'message';
+        div.innerHTML = `
+          <div class="from">${msg.from}</div>
+          <div class="text">${msg.text || '[' + msg.type + ']'}</div>
+          <div class="time">${timeStr}</div>
+        `;
+        container.appendChild(div);
+      });
+      container.scrollTop = container.scrollHeight;
+    }
+
+    fetchMessages();
+    setInterval(fetchMessages, 3000);
+  </script>
+</body>
+</html>
